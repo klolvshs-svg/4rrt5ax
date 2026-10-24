@@ -1,184 +1,203 @@
-<!doctype html>
+<!DOCTYPE html>
 <html lang="ru">
-  <head>
-    <meta charset="UTF-8" />
-    <meta
-      name="viewport"
-      content="width=device-width, initial-scale=1.0, user-scalable=no"
-    />
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
     <title>Спаси Яйцо</title>
     <script src="https://telegram.org/js/telegram-web-app.js"></script>
     <style>
-      body {
-        margin: 0;
-        padding: 0;
-        background: #18222d;
-        color: white;
-        font-family: Arial, sans-serif;
-        text-align: center;
-        overflow: hidden;
-        touch-action: none;
-        user-select: none;
-      }
-      canvas {
-        display: block;
-        background: #0f1721;
-        margin: 0 auto;
-      }
+        body {
+            margin: 0;
+            padding: 0;
+            background: #18222d;
+            color: white;
+            font-family: Arial, sans-serif;
+            text-align: center;
+            overflow: hidden;
+            touch-action: none;
+            user-select: none;
+        }
+        canvas {
+            display: block;
+            background: #0f1721;
+            margin: 0 auto;
+        }
+        #gameOverScreen {
+            display: none;
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: rgba(15, 23, 33, 0.95);
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            z-index: 10;
+        }
+        .btn {
+            background: #248bda;
+            color: white;
+            border: none;
+            padding: 15px 30px;
+            font-size: 18px;
+            font-weight: bold;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 20px;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+        }
+        .btn:active {
+            transform: scale(0.98);
+        }
     </style>
-  </head>
-  <body>
+</head>
+<body>
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Экран окончания игры -->
+    <div id="gameOverScreen">
+        <h1 style="font-size: 40px; margin: 0;">💀 ИГРА ОКОНЧЕНА</h1>
+        <p style="font-size: 20px; color: #aaa; margin-top: 10px;">Нож задел яйцо!</p>
+        <p style="font-size: 26px; color: #00d2ff; font-weight: bold;" id="finalScoreText">+0.000 мл</p>
+        <button class="btn" onclick="sendResultToBot()">Забрать миллилитры 💦</button>
+    </div>
+
     <script>
-      const tg = window.Telegram.WebApp;
-      tg.expand();
+        const tg = window.Telegram.WebApp;
+        tg.expand();
 
-      // Проверяем, кто открыл игру
-      const urlParams = new URLSearchParams(window.location.search);
-      const ownerId = urlParams.get("owner_id");
-      const currentUserId =
-        tg.initDataUnsafe && tg.initDataUnsafe.user
-          ? tg.initDataUnsafe.user.id
-          : null;
+        const canvas = document.getElementById("gameCanvas");
+        const ctx = canvas.getContext("2d");
 
-      // Если открыл не тот игрок, который вызвал команду (/game)
-      if (ownerId && currentUserId && parseInt(ownerId) !== currentUserId) {
-        alert("❌ Это чужая игра! Напиши /game в чате, чтобы запустить свою.");
-        tg.close();
-      }
+        canvas.width = window.innerWidth;
+        canvas.height = window.innerHeight;
 
-      const canvas = document.getElementById("gameCanvas");
-      const ctx = canvas.getContext("2d");
+        let mlEarned = 0.0;
+        let gameOver = false;
+        let hasShield = false;
 
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
+        const player = {
+            x: canvas.width / 2,
+            y: canvas.height - 70,
+            radius: 25
+        };
 
-      let mlEarned = 0.0;
-      let gameOver = false;
-      let hasShield = false;
+        const items = [];
+        let spawnTimer = 0;
 
-      const player = {
-        x: canvas.width / 2,
-        y: canvas.height - 70,
-        radius: 25,
-      };
-
-      const items = [];
-      let spawnTimer = 0;
-
-      function handleMove(e) {
-        const touchX = e.touches ? e.touches[0].clientX : e.clientX;
-        player.x = Math.max(
-          player.radius,
-          Math.min(canvas.width - player.radius, touchX),
-        );
-      }
-
-      window.addEventListener("mousemove", handleMove);
-      window.addEventListener("touchmove", handleMove);
-
-      function gameLoop() {
-        if (gameOver) return;
-
-        ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-        const speedMultiplier = 1 + Math.floor(mlEarned / 5) * 0.25;
-
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "bold 20px Arial";
-        ctx.textAlign = "left";
-        ctx.fillText("Накоплено: " + mlEarned.toFixed(3) + " мл 💦", 20, 40);
-
-        if (hasShield) {
-          ctx.fillStyle = "#00d2ff";
-          ctx.fillText("🛡 Щит активен!", 20, 70);
+        function handleMove(e) {
+            if (gameOver) return;
+            const touchX = e.touches ? e.touches[0].clientX : e.clientX;
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, touchX));
         }
 
-        ctx.font = "40px Arial";
-        ctx.textAlign = "center";
-        ctx.fillText("🥚", player.x, player.y + 15);
+        window.addEventListener("mousemove", handleMove);
+        window.addEventListener("touchmove", handleMove);
 
-        if (hasShield) {
-          ctx.beginPath();
-          ctx.arc(player.x, player.y, player.radius + 12, 0, Math.PI * 2);
-          ctx.strokeStyle = "#00d2ff";
-          ctx.lineWidth = 4;
-          ctx.stroke();
-        }
+        function gameLoop() {
+            if (gameOver) return;
 
-        spawnTimer++;
-        if (spawnTimer % Math.max(10, Math.floor(22 / speedMultiplier)) === 0) {
-          const rand = Math.random();
-          let type = "sword";
+            ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-          if (mlEarned >= 7.0) {
-            if (rand < 0.2) type = "bomb";
-            else if (rand > 0.93 && !hasShield) type = "shield";
-          }
+            const speedMultiplier = 1 + Math.floor(mlEarned / 5) * 0.25;
 
-          items.push({
-            x: Math.random() * (canvas.width - 60) + 30,
-            y: -30,
-            speed: (4 + Math.random() * 3) * speedMultiplier,
-            type: type,
-          });
-        }
+            ctx.fillStyle = "#ffffff";
+            ctx.font = "bold 20px Arial";
+            ctx.textAlign = "left";
+            ctx.fillText("Накоплено: " + mlEarned.toFixed(3) + " мл 💦", 20, 40);
 
-        for (let i = items.length - 1; i >= 0; i--) {
-          const item = items[i];
-          item.y += item.speed;
-
-          ctx.font = "35px Arial";
-          if (item.type === "sword") ctx.fillText("🗡", item.x, item.y);
-          else if (item.type === "bomb") ctx.fillText("💣", item.x, item.y);
-          else if (item.type === "shield") ctx.fillText("🛡", item.x, item.y);
-
-          const dist = Math.hypot(player.x - item.x, player.y - item.y);
-          if (dist < player.radius + 15) {
-            if (item.type === "shield") {
-              hasShield = true;
-              items.splice(i, 1);
-              continue;
-            } else {
-              if (hasShield) {
-                hasShield = false;
-                items.splice(i, 1);
-                continue;
-              } else {
-                endGame();
-                return;
-              }
+            if (hasShield) {
+                ctx.fillStyle = "#00d2ff";
+                ctx.fillText("🛡 Щит активен!", 20, 70);
             }
-          }
 
-          if (item.y > canvas.height + 40) {
-            if (item.type === "sword") {
-              mlEarned += 0.005;
+            ctx.font = "40px Arial";
+            ctx.textAlign = "center";
+            ctx.fillText("🥚", player.x, player.y + 15);
+
+            if (hasShield) {
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.radius + 12, 0, Math.PI * 2);
+                ctx.strokeStyle = "#00d2ff";
+                ctx.lineWidth = 4;
+                ctx.stroke();
             }
-            items.splice(i, 1);
-          }
+
+            spawnTimer++;
+            if (spawnTimer % Math.max(10, Math.floor(22 / speedMultiplier)) === 0) {
+                const rand = Math.random();
+                let type = "sword";
+
+                if (mlEarned >= 7.0) {
+                    if (rand < 0.20) type = "bomb";
+                    else if (rand > 0.93 && !hasShield) type = "shield";
+                }
+
+                items.push({
+                    x: Math.random() * (canvas.width - 60) + 30,
+                    y: -30,
+                    speed: (4 + Math.random() * 3) * speedMultiplier,
+                    type: type
+                });
+            }
+
+            for (let i = items.length - 1; i >= 0; i--) {
+                const item = items[i];
+                item.y += item.speed;
+
+                ctx.font = "35px Arial";
+                if (item.type === "sword") ctx.fillText("🗡", item.x, item.y);
+                else if (item.type === "bomb") ctx.fillText("💣", item.x, item.y);
+                else if (item.type === "shield") ctx.fillText("🛡", item.x, item.y);
+
+                const dist = Math.hypot(player.x - item.x, player.y - item.y);
+                if (dist < player.radius + 15) {
+                    if (item.type === "shield") {
+                        hasShield = true;
+                        items.splice(i, 1);
+                        continue;
+                    } else {
+                        if (hasShield) {
+                            hasShield = false;
+                            items.splice(i, 1);
+                            continue;
+                        } else {
+                            showGameOver();
+                            return;
+                        }
+                    }
+                }
+
+                if (item.y > canvas.height + 40) {
+                    if (item.type === "sword") {
+                        mlEarned += 0.005; // +0.005 мл за 1 меч
+                    }
+                    items.splice(i, 1);
+                }
+            }
+
+            requestAnimationFrame(gameLoop);
+        }
+
+        function showGameOver() {
+            gameOver = true;
+            const finalMl = parseFloat(mlEarned.toFixed(3));
+            document.getElementById("finalScoreText").innerText = "+" + finalMl + " мл 💦";
+            document.getElementById("gameOverScreen").style.display = "flex";
+        }
+
+        function sendResultToBot() {
+            const finalMl = parseFloat(mlEarned.toFixed(3));
+            try {
+                tg.sendData(JSON.stringify({ score: finalMl }));
+            } catch (e) {
+                alert("Ошибка отправки: " + e);
+            }
+            tg.close();
         }
 
         requestAnimationFrame(gameLoop);
-      }
-
-      function endGame() {
-        gameOver = true;
-        const finalMl = parseFloat(mlEarned.toFixed(3));
-
-        try {
-          tg.sendData(JSON.stringify({ score: finalMl }));
-        } catch (e) {
-          console.log(e);
-        }
-
-        setTimeout(() => {
-          tg.close();
-        }, 300);
-      }
-
-      requestAnimationFrame(gameLoop);
     </script>
-  </body>
+</body>
 </html>
