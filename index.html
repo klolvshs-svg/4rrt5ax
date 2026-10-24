@@ -129,8 +129,8 @@
         let gameOver = false;
         let hasShield = false;
 
-        let invincibleUntil = 0;
-        let slowUntil = 0;
+        let invincibleUntil = 0; // Непробиваемость (⛩) на 5 секунд
+        let slowUntil = 0;       // Замедление (❄️) на 3 секунды
         let targetX = canvas.width / 2;
 
         let egg20GuaranteedSpawned = false;
@@ -215,21 +215,21 @@
                     egg20GuaranteedSpawned = true;
                 } else {
                     if (mlEarned >= 15.0 && rand < 0.015) {
-                        type = "egg20";
+                        type = "egg20"; // Золотое яйцо (+20 мл)
                     } else if (mlEarned >= 14.0 && rand >= 0.015 && rand < 0.022) {
-                        type = "blood";
+                        type = "blood"; // Кровь (+10 мл)
                     } else if (mlEarned >= 8.0 && rand >= 0.022 && rand < 0.04) {
-                        type = "torii";
+                        type = "torii"; // Ворота (⛩)
                     } else if (mlEarned >= 5.0 && rand >= 0.04 && rand < 0.065) {
-                        type = "drop1";
+                        type = "drop1"; // Капля (+1 мл)
                     } else if (mlEarned >= 6.0 && rand >= 0.065 && rand < 0.15) {
-                        type = "splash";
+                        type = "splash"; // Всплеск (+0.1 мл)
                     } else if (mlEarned >= 12.0 && rand >= 0.15 && rand < 0.22) {
-                        type = "snow";
+                        type = "snow"; // Снежинка (❄️)
                     } else if (mlEarned >= 1.0 && rand >= 0.22 && rand < 0.46) {
-                        type = "bomb";
+                        type = "bomb"; // Бомбы (💣)
                     } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.46 && rand < 0.475) {
-                        type = "shield";
+                        type = "shield"; // Щит (🛡) — ультра-редкий
                     }
                 }
 
@@ -301,9 +301,10 @@
                     }
                 }
 
+                // Упал за экран — начисляем 0.125 только за мечи (🗡)
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.125;
+                        mlEarned += 0.125; 
                     }
                     items.splice(i, 1);
                 }
@@ -385,16 +386,16 @@
                 return;
             }
 
-            // 1. Сначала генерируем код
+            // 1. Генерируем код
             const promo = generatePromoCode(val);
 
-            // 2. Только при успешной генерации списываем баланс и сохраняем код
+            // 2. Списываем баланс и сохраняем код ТОЛЬКО ПОСЛЕ успешной генерации
             totalBank -= val;
             lastPromoCode = promo;
             localStorage.setItem("egg_total_ml_bank", totalBank.toFixed(3));
             localStorage.setItem("egg_last_promo_code", promo);
 
-            // 3. Отображаем окно с кодом
+            // 3. Показываем код
             document.getElementById("promoCodeDisplay").innerText = promo;
             document.getElementById("botCommandText").innerText = `/getb ${promo}`;
 
