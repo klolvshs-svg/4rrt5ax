@@ -118,7 +118,7 @@
 
     <script>
         // Версионирование для автоматического сброса старого кэша
-        const GAME_VERSION = "v4_020";
+        const GAME_VERSION = "v5_005";
         if (localStorage.getItem("egg_game_version") !== GAME_VERSION) {
             localStorage.setItem("egg_game_version", GAME_VERSION);
         }
@@ -193,7 +193,7 @@
                 ctx.fillText("❄️ Замедление! (3 сек)", 15, statusY);
             }
 
-            // Возвращено классическое эмодзи-яйцо 🥚
+            // Классическое эмодзи-яйцо 🥚
             ctx.font = "40px Arial";
             ctx.textAlign = "center";
             ctx.fillText("🥚", player.x, player.y + 15);
@@ -308,10 +308,10 @@
                     }
                 }
 
-                // Упал за экран — начисляем ровно 0.020 мл за каждый меч
+                // Упал за экран — начисляем ровно 0.005 мл за каждый меч
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.020; 
+                        mlEarned += 0.005; 
                     }
                     items.splice(i, 1);
                 }
