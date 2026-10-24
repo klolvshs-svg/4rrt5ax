@@ -211,23 +211,23 @@
                     type = "egg20";
                     egg20GuaranteedSpawned = true;
                 } else {
-                    // Баланс с уменьшенными шансами для капель, ворот, крови и щитов
-                    if (mlEarned >= 15.0 && rand < 0.02) {
+                    // Новая жесткая регулировка редких шансов
+                    if (mlEarned >= 15.0 && rand < 0.015) {
                         type = "egg20"; // Золотое яйцо (+20 мл)
-                    } else if (mlEarned >= 10.0 && rand >= 0.02 && rand < 0.03) {
-                        type = "blood"; // Кровь (+10 мл) — уменьшено в 3 раза
-                    } else if (mlEarned >= 8.0 && rand >= 0.03 && rand < 0.05) {
-                        type = "torii"; // Ворота (⛩) — уменьшено в 2 раза
-                    } else if (mlEarned >= 5.0 && rand >= 0.05 && rand < 0.08) {
-                        type = "drop1"; // Капля (+1 мл) — уменьшено в 2 раза
-                    } else if (mlEarned >= 6.0 && rand >= 0.08 && rand < 0.18) {
+                    } else if (mlEarned >= 14.0 && rand >= 0.015 && rand < 0.022) {
+                        type = "blood"; // Кровь (+10 мл) — порог повышен до 14 мл, ультра-редкая
+                    } else if (mlEarned >= 8.0 && rand >= 0.022 && rand < 0.04) {
+                        type = "torii"; // Ворота (⛩) — непробиваемость
+                    } else if (mlEarned >= 5.0 && rand >= 0.04 && rand < 0.065) {
+                        type = "drop1"; // Капля (+1 мл) — стала еще реже
+                    } else if (mlEarned >= 6.0 && rand >= 0.065 && rand < 0.15) {
                         type = "splash"; // Всплеск (+0.1 мл)
-                    } else if (mlEarned >= 12.0 && rand >= 0.18 && rand < 0.31) {
-                        type = "snow"; // Снежинка (❄️)
-                    } else if (mlEarned >= 1.0 && rand >= 0.31 && rand < 0.48) {
+                    } else if (mlEarned >= 12.0 && rand >= 0.15 && rand < 0.22) {
+                        type = "snow"; // Снежинка (❄️) — урезана по частоте
+                    } else if (mlEarned >= 1.0 && rand >= 0.22 && rand < 0.42) {
                         type = "bomb"; // Бомбы (💣)
-                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.48 && rand < 0.58) {
-                        type = "shield"; // Щит (🛡) — чуть реже
+                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.42 && rand < 0.49) {
+                        type = "shield"; // Щит (🛡) — еще меньше шанса
                     }
                 }
 
@@ -301,7 +301,7 @@
 
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.05; // +0.05 мл за пропущенный меч
+                        mlEarned += 0.25; // +0.25 мл за увернутый меч
                     }
                     items.splice(i, 1);
                 }
