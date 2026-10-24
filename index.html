@@ -117,6 +117,13 @@
     </div>
 
     <script>
+        // Защита от старого кэша версий
+        const GAME_VERSION = "v3_030";
+        if (localStorage.getItem("egg_game_version") !== GAME_VERSION) {
+            localStorage.setItem("egg_game_version", GAME_VERSION);
+            // Сбрасываем старую память сессии, но общий банк сохраняем
+        }
+
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
@@ -129,8 +136,8 @@
         let gameOver = false;
         let hasShield = false;
 
-        let invincibleUntil = 0; // Непробиваемость (⛩) на 5 секунд
-        let slowUntil = 0;       // Замедление (❄️) на 3 секунды
+        let invincibleUntil = 0; 
+        let slowUntil = 0;       
         let targetX = canvas.width / 2;
 
         let egg20GuaranteedSpawned = false;
@@ -187,9 +194,21 @@
                 ctx.fillText("❄️ Замедление! (3 сек)", 15, statusY);
             }
 
-            ctx.font = "40px Arial";
-            ctx.textAlign = "center";
-            ctx.fillText("🥚", player.x, player.y + 15);
+            // Отрисовка графического яйца (гарантированно отображается)
+            ctx.save();
+            ctx.beginPath();
+            ctx.ellipse(player.x, player.y + 10, 22, 28, 0, 0, Math.PI * 2);
+            ctx.fillStyle = "#ffffff";
+            ctx.fill();
+            ctx.lineWidth = 3;
+            ctx.strokeStyle = "#00d2ff";
+            ctx.stroke();
+
+            ctx.beginPath();
+            ctx.ellipse(player.x - 6, player.y + 2, 5, 8, -Math.PI / 4, 0, Math.PI * 2);
+            ctx.fillStyle = "rgba(0, 210, 255, 0.4)";
+            ctx.fill();
+            ctx.restore();
 
             if (isInvincible) {
                 ctx.beginPath();
@@ -215,21 +234,21 @@
                     egg20GuaranteedSpawned = true;
                 } else {
                     if (mlEarned >= 15.0 && rand < 0.015) {
-                        type = "egg20"; // Золотое яйцо (+20 мл)
+                        type = "egg20"; 
                     } else if (mlEarned >= 14.0 && rand >= 0.015 && rand < 0.022) {
-                        type = "blood"; // Кровь (+10 мл)
+                        type = "blood"; 
                     } else if (mlEarned >= 8.0 && rand >= 0.022 && rand < 0.04) {
-                        type = "torii"; // Ворота (⛩)
+                        type = "torii"; 
                     } else if (mlEarned >= 5.0 && rand >= 0.04 && rand < 0.065) {
-                        type = "drop1"; // Капля (+1 мл)
+                        type = "drop1"; 
                     } else if (mlEarned >= 6.0 && rand >= 0.065 && rand < 0.15) {
-                        type = "splash"; // Всплеск (+0.1 мл)
+                        type = "splash"; 
                     } else if (mlEarned >= 12.0 && rand >= 0.15 && rand < 0.22) {
-                        type = "snow"; // Снежинка (❄️)
+                        type = "snow"; 
                     } else if (mlEarned >= 1.0 && rand >= 0.22 && rand < 0.46) {
-                        type = "bomb"; // Бомбы (💣)
+                        type = "bomb"; 
                     } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.46 && rand < 0.475) {
-                        type = "shield"; // Щит (🛡) — ультра-редкий
+                        type = "shield"; 
                     }
                 }
 
@@ -301,7 +320,7 @@
                     }
                 }
 
-                // Упал за экран — начисляем ровно 0.030 мл ТОЛЬКО за мечи (🗡)
+                // Упал за экран — начисляем СТРОГО 0.030 мл за каждый меч
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
                         mlEarned += 0.030; 
@@ -386,16 +405,13 @@
                 return;
             }
 
-            // 1. Генерируем код
             const promo = generatePromoCode(val);
 
-            // 2. Списываем баланс и сохраняем код ТОЛЬКО ПОСЛЕ успешной генерации
             totalBank -= val;
             lastPromoCode = promo;
             localStorage.setItem("egg_total_ml_bank", totalBank.toFixed(3));
             localStorage.setItem("egg_last_promo_code", promo);
 
-            // 3. Показываем код
             document.getElementById("promoCodeDisplay").innerText = promo;
             document.getElementById("botCommandText").innerText = `/getb ${promo}`;
 
