@@ -48,6 +48,7 @@
         }
         .btn:active { transform: scale(0.98); }
         .btn-withdraw { background: #28a745; }
+        .btn-secondary { background: #6c757d; }
         input[type="number"] {
             padding: 10px;
             font-size: 18px;
@@ -101,6 +102,7 @@
         
         <div>
             <button class="btn btn-withdraw" onclick="processWithdraw()">Получить код</button>
+            <button class="btn btn-secondary" id="lastCodeBtn" style="display:none;" onclick="showLastGeneratedCode()">Последний код 🔑</button>
             <button class="btn" onclick="closeWithdrawModal()">Назад</button>
         </div>
     </div>
@@ -122,12 +124,13 @@
         canvas.height = window.innerHeight;
 
         let totalBank = parseFloat(localStorage.getItem("egg_total_ml_bank") || "0.0");
+        let lastPromoCode = localStorage.getItem("egg_last_promo_code") || "";
         let mlEarned = 0.0;
         let gameOver = false;
         let hasShield = false;
 
-        let invincibleUntil = 0; // Непробиваемость (⛩) на 5 секунд
-        let slowUntil = 0;       // Замедление (❄️) на 3 секунды
+        let invincibleUntil = 0;
+        let slowUntil = 0;
         let targetX = canvas.width / 2;
 
         let egg20GuaranteedSpawned = false;
@@ -211,23 +214,22 @@
                     type = "egg20";
                     egg20GuaranteedSpawned = true;
                 } else {
-                    // Баланс шансов с ультра-минимальным щитом
                     if (mlEarned >= 15.0 && rand < 0.015) {
-                        type = "egg20"; // Золотое яйцо (+20 мл)
+                        type = "egg20";
                     } else if (mlEarned >= 14.0 && rand >= 0.015 && rand < 0.022) {
-                        type = "blood"; // Кровь (+10 мл)
+                        type = "blood";
                     } else if (mlEarned >= 8.0 && rand >= 0.022 && rand < 0.04) {
-                        type = "torii"; // Ворота (⛩)
+                        type = "torii";
                     } else if (mlEarned >= 5.0 && rand >= 0.04 && rand < 0.065) {
-                        type = "drop1"; // Капля (+1 мл)
+                        type = "drop1";
                     } else if (mlEarned >= 6.0 && rand >= 0.065 && rand < 0.15) {
-                        type = "splash"; // Всплеск (+0.1 мл)
+                        type = "splash";
                     } else if (mlEarned >= 12.0 && rand >= 0.15 && rand < 0.22) {
-                        type = "snow"; // Снежинка (❄️)
+                        type = "snow";
                     } else if (mlEarned >= 1.0 && rand >= 0.22 && rand < 0.46) {
-                        type = "bomb"; // Бомбы (💣)
+                        type = "bomb";
                     } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.46 && rand < 0.475) {
-                        type = "shield"; // Щит (🛡) — МИНИМАЛЬНЫЙ ШАНС (1.5%)
+                        type = "shield";
                     }
                 }
 
@@ -299,10 +301,9 @@
                     }
                 }
 
-                // Упал за экран — начисляем только за мечи (🗡)
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.125; // +0.125 мл за увернутый меч
+                        mlEarned += 0.125;
                     }
                     items.splice(i, 1);
                 }
@@ -338,6 +339,14 @@
             document.getElementById("withdrawBalanceText").innerText = Math.floor(totalBank);
             document.getElementById("withdrawError").style.display = "none";
             document.getElementById("withdrawAmount").value = "";
+
+            const lastBtn = document.getElementById("lastCodeBtn");
+            if (lastPromoCode) {
+                lastBtn.style.display = "inline-block";
+            } else {
+                lastBtn.style.display = "none";
+            }
+
             document.getElementById("withdrawModal").style.display = "flex";
         }
 
@@ -376,13 +385,27 @@
                 return;
             }
 
-            totalBank -= val;
-            localStorage.setItem("egg_total_ml_bank", totalBank.toFixed(3));
-
+            // 1. Сначала генерируем код
             const promo = generatePromoCode(val);
+
+            // 2. Только при успешной генерации списываем баланс и сохраняем код
+            totalBank -= val;
+            lastPromoCode = promo;
+            localStorage.setItem("egg_total_ml_bank", totalBank.toFixed(3));
+            localStorage.setItem("egg_last_promo_code", promo);
+
+            // 3. Отображаем окно с кодом
             document.getElementById("promoCodeDisplay").innerText = promo;
             document.getElementById("botCommandText").innerText = `/getb ${promo}`;
 
+            closeWithdrawModal();
+            document.getElementById("promoModal").style.display = "flex";
+        }
+
+        function showLastGeneratedCode() {
+            if (!lastPromoCode) return;
+            document.getElementById("promoCodeDisplay").innerText = lastPromoCode;
+            document.getElementById("botCommandText").innerText = `/getb ${lastPromoCode}`;
             closeWithdrawModal();
             document.getElementById("promoModal").style.display = "flex";
         }
