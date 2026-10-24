@@ -211,23 +211,23 @@
                     type = "egg20";
                     egg20GuaranteedSpawned = true;
                 } else {
-                    // Новая жесткая регулировка редких шансов
+                    // Обновленный баланс шансов с супер-редким щитом
                     if (mlEarned >= 15.0 && rand < 0.015) {
                         type = "egg20"; // Золотое яйцо (+20 мл)
                     } else if (mlEarned >= 14.0 && rand >= 0.015 && rand < 0.022) {
-                        type = "blood"; // Кровь (+10 мл) — порог повышен до 14 мл, ультра-редкая
+                        type = "blood"; // Кровь (+10 мл)
                     } else if (mlEarned >= 8.0 && rand >= 0.022 && rand < 0.04) {
-                        type = "torii"; // Ворота (⛩) — непробиваемость
+                        type = "torii"; // Ворота (⛩)
                     } else if (mlEarned >= 5.0 && rand >= 0.04 && rand < 0.065) {
-                        type = "drop1"; // Капля (+1 мл) — стала еще реже
+                        type = "drop1"; // Капля (+1 мл)
                     } else if (mlEarned >= 6.0 && rand >= 0.065 && rand < 0.15) {
                         type = "splash"; // Всплеск (+0.1 мл)
                     } else if (mlEarned >= 12.0 && rand >= 0.15 && rand < 0.22) {
-                        type = "snow"; // Снежинка (❄️) — урезана по частоте
-                    } else if (mlEarned >= 1.0 && rand >= 0.22 && rand < 0.42) {
+                        type = "snow"; // Снежинка (❄️)
+                    } else if (mlEarned >= 1.0 && rand >= 0.22 && rand < 0.45) {
                         type = "bomb"; // Бомбы (💣)
-                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.42 && rand < 0.49) {
-                        type = "shield"; // Щит (🛡) — еще меньше шанса
+                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.45 && rand < 0.48) {
+                        type = "shield"; // Щит (🛡) — ЕЩЕ МЕНЬШЕ ШАНС
                     }
                 }
 
@@ -301,7 +301,7 @@
 
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.25; // +0.25 мл за увернутый меч
+                        mlEarned += 0.25; // +0.25 мл за пропущенный меч
                     }
                     items.splice(i, 1);
                 }
