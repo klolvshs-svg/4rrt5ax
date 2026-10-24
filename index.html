@@ -93,10 +93,10 @@
         <h2>🎁 Вывод миллилитров</h2>
         <p style="color: #aaa; font-size: 14px; max-width: 80%;">
             Доступно: <b id="withdrawBalanceText" style="color: #00d2ff;">0</b> мл<br>
-            • Мин: <b>1 мл</b> | Макс: <b>50 мл</b><br>
-            • Только целые числа (1, 5, 10 и т.д.)
+            • Мин: <b>1 мл</b> | Макс: <b>500 мл</b><br>
+            • Только целые числа (1, 10, 100 и т.д.)
         </p>
-        <input type="number" id="withdrawAmount" placeholder="Например: 1" min="1" max="50" step="1">
+        <input type="number" id="withdrawAmount" placeholder="Например: 50" min="1" max="500" step="1">
         <div id="withdrawError" style="color: #ff4d4d; font-size: 14px; display: none; margin-bottom: 5px;"></div>
         
         <div>
@@ -121,20 +121,24 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Сохраняем просто в локальный банк браузера БЕЗ айди
         let totalBank = parseFloat(localStorage.getItem("egg_total_ml_bank") || "0.0");
         let mlEarned = 0.0;
         let gameOver = false;
         let hasShield = false;
 
+        // Эффекты
+        let freezeUntil = 0;   // Заморозка движения (❄️)
+        let slowUntil = 0;     // Замедление движения (🥶)
+        let targetX = canvas.width / 2;
+
         const player = { x: canvas.width / 2, y: canvas.height - 70, radius: 25 };
         let items = [];
         let spawnTimer = 0;
+        let dropSpawnCounter = 0; // Для редкого выпадения капли 💧
 
         function handleMove(e) {
             if (gameOver) return;
-            const touchX = e.touches ? e.touches[0].clientX : e.clientX;
-            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, touchX));
+            targetX = e.touches ? e.touches[0].clientX : e.clientX;
         }
 
         window.addEventListener("mousemove", handleMove);
@@ -143,9 +147,24 @@
         function gameLoop() {
             if (gameOver) return;
 
+            const now = Date.now();
+            const isFrozen = now < freezeUntil;
+            const isSlowed = now < slowUntil;
+
+            // Обновление положения игрока с учетом замедления / заморозки
+            if (!isFrozen) {
+                if (isSlowed) {
+                    player.x += (targetX - player.x) * 0.08; // Замедленный отклик
+                } else {
+                    player.x = targetX; // Обычный мгновенный отклик
+                }
+            }
+            player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
+
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            const speedMultiplier = 1 + Math.floor(mlEarned / 5) * 0.25;
+            // Скорость увеличивается чуть-чуть с каждыми 4 мл
+            const speedMultiplier = 1 + Math.floor(mlEarned / 4) * 0.10;
 
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 16px Arial";
@@ -153,11 +172,24 @@
             ctx.fillText("За раунд: " + mlEarned.toFixed(3) + " мл", 15, 30);
             ctx.fillText("В банке: " + totalBank.toFixed(3) + " мл 💦", 15, 55);
 
+            // Отрисовка активных статусов
+            let statusY = 80;
             if (hasShield) {
                 ctx.fillStyle = "#00d2ff";
-                ctx.fillText("🛡 Щит активен!", 15, 80);
+                ctx.fillText("🛡 Щит активен!", 15, statusY);
+                statusY += 20;
+            }
+            if (isFrozen) {
+                ctx.fillStyle = "#99ffff";
+                ctx.fillText("❄️ Заморозка! (2 сек)", 15, statusY);
+                statusY += 20;
+            }
+            if (isSlowed) {
+                ctx.fillStyle = "#00aaff";
+                ctx.fillText("🥶 Замедление! (3 сек)", 15, statusY);
             }
 
+            // Отрисовка игрока
             ctx.font = "40px Arial";
             ctx.textAlign = "center";
             ctx.fillText("🥚", player.x, player.y + 15);
@@ -170,13 +202,41 @@
                 ctx.stroke();
             }
 
+            // Генерация предметов
             spawnTimer++;
             if (spawnTimer % Math.max(10, Math.floor(22 / speedMultiplier)) === 0) {
                 const rand = Math.random();
                 let type = "sword";
-                if (mlEarned >= 7.0) {
-                    if (rand < 0.20) type = "bomb";
-                    else if (rand > 0.93 && !hasShield) type = "shield";
+
+                // Условия по миллилитрам
+                const allowShield = mlEarned >= 5.0;
+                const allowBomb = mlEarned >= 6.0;
+                const allowSnow = mlEarned >= 10.0;
+                const allowDrop = mlEarned >= 15.0;
+                const allowSlow = mlEarned >= 20.0;
+
+                // Редкая капля 💧 (~1 раз на 1 мл)
+                let spawnedDrop = false;
+                if (allowDrop && (mlEarned - dropSpawnCounter >= 1.0) && Math.random() < 0.15) {
+                    type = "drop";
+                    dropSpawnCounter = Math.floor(mlEarned);
+                    spawnedDrop = true;
+                }
+
+                if (!spawnedDrop) {
+                    if (allowBomb && rand < 0.15) {
+                        type = "bomb";
+                    } else if (allowSlow && rand > 0.15 && rand < 0.25) {
+                        type = "slow";
+                    } else if (allowSnow && rand >= 0.25 && rand < 0.35) {
+                        type = "snow";
+                    } else if (allowShield && !hasShield) {
+                        // Шанс щита: редкий от 5 мл, частый после 6 мл
+                        const shieldChance = (mlEarned >= 6.0) ? 0.30 : 0.10;
+                        if (Math.random() < shieldChance) {
+                            type = "shield";
+                        }
+                    }
                 }
 
                 items.push({
@@ -187,6 +247,7 @@
                 });
             }
 
+            // Движение и столкновения
             for (let i = items.length - 1; i >= 0; i--) {
                 const item = items[i];
                 item.y += item.speed;
@@ -195,6 +256,9 @@
                 if (item.type === "sword") ctx.fillText("🗡", item.x, item.y);
                 else if (item.type === "bomb") ctx.fillText("💣", item.x, item.y);
                 else if (item.type === "shield") ctx.fillText("🛡", item.x, item.y);
+                else if (item.type === "snow") ctx.fillText("❄️", item.x, item.y);
+                else if (item.type === "drop") ctx.fillText("💧", item.x, item.y);
+                else if (item.type === "slow") ctx.fillText("🥶", item.x, item.y);
 
                 const dist = Math.hypot(player.x - item.x, player.y - item.y);
                 if (dist < player.radius + 15) {
@@ -202,7 +266,19 @@
                         hasShield = true;
                         items.splice(i, 1);
                         continue;
-                    } else {
+                    } else if (item.type === "drop") {
+                        mlEarned += 1.0; // Дает ровно 1 мл
+                        items.splice(i, 1);
+                        continue;
+                    } else if (item.type === "snow") {
+                        freezeUntil = Date.now() + 2000; // Заморозка 2 сек
+                        items.splice(i, 1);
+                        continue;
+                    } else if (item.type === "slow") {
+                        slowUntil = Date.now() + 3000; // Замедление 3 сек
+                        items.splice(i, 1);
+                        continue;
+                    } else { // Мечи 🗡 и Бомбы 💣
                         if (hasShield) {
                             hasShield = false;
                             items.splice(i, 1);
@@ -214,9 +290,10 @@
                     }
                 }
 
+                // Упал за экран
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.005;
+                        mlEarned += 0.005; // Считаем миллилитры только за мечи
                     }
                     items.splice(i, 1);
                 }
@@ -239,6 +316,9 @@
             mlEarned = 0.0;
             items = [];
             spawnTimer = 0;
+            dropSpawnCounter = 0;
+            freezeUntil = 0;
+            slowUntil = 0;
             gameOver = false;
             hasShield = false;
             document.getElementById("gameOverScreen").style.display = "none";
@@ -260,8 +340,8 @@
             const secretSalt = 98723;
             const randHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
             const checksum = ((amount * 31 + secretSalt) % 65535).toString(16).toUpperCase().padStart(4, '0');
-            const amountHex = amount.toString(16).toUpperCase().padStart(2, '0');
-            return `EGG-${amountHex}${randHex.substring(0,2)}-${checksum}`;
+            const amountHex = amount.toString(16).toUpperCase().padStart(4, '0'); // Расширено под 500 мл
+            return `EGG-${amountHex}-${checksum}`;
         }
 
         function processWithdraw() {
@@ -275,8 +355,9 @@
                 return;
             }
 
-            if (val < 1 || val > 50) {
-                errorDiv.innerText = "❌ Сумма должна быть от 1 до 50 мл!";
+            // Новые лимиты: от 1 до 500 мл
+            if (val < 1 || val > 500) {
+                errorDiv.innerText = "❌ Сумма должна быть от 1 до 500 мл!";
                 errorDiv.style.display = "block";
                 return;
             }
@@ -287,7 +368,6 @@
                 return;
             }
 
-            // Списываем средства с баланса сайта
             totalBank -= val;
             localStorage.setItem("egg_total_ml_bank", totalBank.toFixed(3));
 
