@@ -211,7 +211,7 @@
                     type = "egg20";
                     egg20GuaranteedSpawned = true;
                 } else {
-                    // Обновленный баланс шансов с супер-редким щитом
+                    // Баланс шансов с ультра-минимальным щитом
                     if (mlEarned >= 15.0 && rand < 0.015) {
                         type = "egg20"; // Золотое яйцо (+20 мл)
                     } else if (mlEarned >= 14.0 && rand >= 0.015 && rand < 0.022) {
@@ -224,10 +224,10 @@
                         type = "splash"; // Всплеск (+0.1 мл)
                     } else if (mlEarned >= 12.0 && rand >= 0.15 && rand < 0.22) {
                         type = "snow"; // Снежинка (❄️)
-                    } else if (mlEarned >= 1.0 && rand >= 0.22 && rand < 0.45) {
+                    } else if (mlEarned >= 1.0 && rand >= 0.22 && rand < 0.46) {
                         type = "bomb"; // Бомбы (💣)
-                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.45 && rand < 0.48) {
-                        type = "shield"; // Щит (🛡) — ЕЩЕ МЕНЬШЕ ШАНС
+                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.46 && rand < 0.475) {
+                        type = "shield"; // Щит (🛡) — МИНИМАЛЬНЫЙ ШАНС (1.5%)
                     }
                 }
 
@@ -299,9 +299,10 @@
                     }
                 }
 
+                // Упал за экран — начисляем только за мечи (🗡)
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.25; // +0.25 мл за пропущенный меч
+                        mlEarned += 0.125; // +0.125 мл за увернутый меч
                     }
                     items.splice(i, 1);
                 }
