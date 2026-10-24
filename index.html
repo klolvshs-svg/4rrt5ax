@@ -3,6 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+    <!-- Запрет кэша для быстрого обновления -->
     <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate">
     <meta http-equiv="Pragma" content="no-cache">
     <meta http-equiv="Expires" content="0">
@@ -121,6 +122,13 @@
     </div>
 
     <script>
+        // Авто-сброс кэша при изменении версии
+        const CURRENT_APP_VERSION = "v8_010";
+        if (localStorage.getItem("egg_app_ver") !== CURRENT_APP_VERSION) {
+            localStorage.setItem("egg_app_ver", CURRENT_APP_VERSION);
+            window.location.reload(true);
+        }
+
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
