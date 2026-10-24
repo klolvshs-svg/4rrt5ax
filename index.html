@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
-    <title>Спаси Яйцо</title>
-    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <title>Спаси Яйцо - Аркада</title>
     <style>
         body {
             margin: 0;
@@ -22,7 +21,7 @@
             background: #0f1721;
             margin: 0 auto;
         }
-        #gameOverScreen {
+        .modal {
             display: none;
             position: absolute;
             top: 0;
@@ -39,50 +38,97 @@
             background: #248bda;
             color: white;
             border: none;
-            padding: 15px 30px;
-            font-size: 18px;
+            padding: 12px 24px;
+            font-size: 16px;
             font-weight: bold;
-            border-radius: 10px;
+            border-radius: 8px;
             cursor: pointer;
-            margin-top: 20px;
+            margin: 8px;
             box-shadow: 0 4px 10px rgba(0,0,0,0.3);
         }
-        .btn:active {
-            transform: scale(0.98);
+        .btn:active { transform: scale(0.98); }
+        .btn-withdraw { background: #28a745; }
+        input[type="number"] {
+            padding: 10px;
+            font-size: 18px;
+            width: 150px;
+            text-align: center;
+            border-radius: 8px;
+            border: 2px solid #248bda;
+            outline: none;
+            margin: 10px 0;
+        }
+        .promo-box {
+            background: #223040;
+            border: 2px dashed #00d2ff;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #00d2ff;
+            letter-spacing: 2px;
+            margin: 15px 0;
+            user-select: all;
         }
     </style>
 </head>
 <body>
     <canvas id="gameCanvas"></canvas>
 
-    <div id="gameOverScreen">
-        <h1 style="font-size: 40px; margin: 0;">💀 ИГРА ОКОНЧЕНА</h1>
-        <p style="font-size: 20px; color: #aaa; margin-top: 10px;">Нож задел яйцо!</p>
-        <p style="font-size: 26px; color: #00d2ff; font-weight: bold;" id="finalScoreText">+0.000 мл</p>
-        <button class="btn" onclick="sendResultToBot()">Забрать миллилитры 💦</button>
+    <!-- Экран окончания игры -->
+    <div id="gameOverScreen" class="modal">
+        <h1 style="font-size: 36px; margin: 0;">💀 ИГРА ОКОНЧЕНА</h1>
+        <p style="font-size: 18px; color: #aaa;">Заработано за раунд:</p>
+        <p style="font-size: 26px; color: #00d2ff; font-weight: bold;" id="roundScoreText">+0.000 мл</p>
+        <p style="font-size: 18px; color: #fff;">Общий баланс на сайте: <b id="totalBankText">0.000</b> мл</p>
+        
+        <div>
+            <button class="btn" onclick="restartGame()">Заново 🔄</button>
+            <button class="btn btn-withdraw" onclick="showWithdrawModal()">Вывести мл 🎁</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно вывода -->
+    <div id="withdrawModal" class="modal">
+        <h2>🎁 Вывод миллилитров</h2>
+        <p style="color: #aaa; font-size: 14px; max-width: 80%;">
+            Доступно: <b id="withdrawBalanceText" style="color: #00d2ff;">0</b> мл<br>
+            • Мин: <b>10 мл</b> | Макс: <b>50 мл</b><br>
+            • Только целые числа (10, 15, 20 и т.д.)
+        </p>
+        <input type="number" id="withdrawAmount" placeholder="Например: 10" min="10" max="50" step="1">
+        <div id="withdrawError" style="color: #ff4d4d; font-size: 14px; display: none; margin-bottom: 5px;"></div>
+        
+        <div>
+            <button class="btn btn-withdraw" onclick="processWithdraw()">Получить промокод</button>
+            <button class="btn" onclick="closeWithdrawModal()">Назад</button>
+        </div>
+    </div>
+
+    <!-- Модальное окно с промокодом -->
+    <div id="promoModal" class="modal">
+        <h2>🎉 Ваш промокод готов!</h2>
+        <p style="color: #aaa;">Скопируйте его и отправьте боту командой:</p>
+        <div class="promo-box" id="promoCodeDisplay">EGG-XXXX-XXXX</div>
+        <p style="font-size: 14px; color: #888;">Команда для бота: <br><code id="botCommandText" style="color: #fff; font-size: 16px;">/getb EGG-XXXX-XXXX</code></p>
+        <button class="btn" onclick="closePromoModal()">Отлично 👍</button>
     </div>
 
     <script>
-        const tg = window.Telegram.WebApp;
-        tg.expand();
-
         const canvas = document.getElementById("gameCanvas");
         const ctx = canvas.getContext("2d");
 
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
+        // Загружаем общий сохраненный баланс из браузера
+        let totalBank = parseFloat(localStorage.getItem("egg_total_ml") || "0.0");
         let mlEarned = 0.0;
         let gameOver = false;
         let hasShield = false;
 
-        const player = {
-            x: canvas.width / 2,
-            y: canvas.height - 70,
-            radius: 25
-        };
-
-        const items = [];
+        const player = { x: canvas.width / 2, y: canvas.height - 70, radius: 25 };
+        let items = [];
         let spawnTimer = 0;
 
         function handleMove(e) {
@@ -102,13 +148,14 @@
             const speedMultiplier = 1 + Math.floor(mlEarned / 5) * 0.25;
 
             ctx.fillStyle = "#ffffff";
-            ctx.font = "bold 20px Arial";
+            ctx.font = "bold 16px Arial";
             ctx.textAlign = "left";
-            ctx.fillText("Накоплено: " + mlEarned.toFixed(3) + " мл 💦", 20, 40);
+            ctx.fillText("За раунд: " + mlEarned.toFixed(3) + " мл", 15, 30);
+            ctx.fillText("В банке: " + totalBank.toFixed(3) + " мл 💦", 15, 55);
 
             if (hasShield) {
                 ctx.fillStyle = "#00d2ff";
-                ctx.fillText("🛡 Щит активен!", 20, 70);
+                ctx.fillText("🛡 Щит активен!", 15, 80);
             }
 
             ctx.font = "40px Arial";
@@ -127,7 +174,6 @@
             if (spawnTimer % Math.max(10, Math.floor(22 / speedMultiplier)) === 0) {
                 const rand = Math.random();
                 let type = "sword";
-
                 if (mlEarned >= 7.0) {
                     if (rand < 0.20) type = "bomb";
                     else if (rand > 0.93 && !hasShield) type = "shield";
@@ -181,17 +227,82 @@
 
         function showGameOver() {
             gameOver = true;
-            const finalMl = parseFloat(mlEarned.toFixed(3));
-            document.getElementById("finalScoreText").innerText = "+" + finalMl + " мл 💦";
+            totalBank += mlEarned;
+            localStorage.setItem("egg_total_ml", totalBank.toFixed(3));
+
+            document.getElementById("roundScoreText").innerText = "+" + mlEarned.toFixed(3) + " мл 💦";
+            document.getElementById("totalBankText").innerText = totalBank.toFixed(3);
             document.getElementById("gameOverScreen").style.display = "flex";
         }
 
-        function sendResultToBot() {
-            const finalMl = parseFloat(mlEarned.toFixed(3));
-            try {
-                tg.sendData(JSON.stringify({ score: finalMl }));
-            } catch (e) {}
-            tg.close();
+        function restartGame() {
+            mlEarned = 0.0;
+            items = [];
+            spawnTimer = 0;
+            gameOver = false;
+            hasShield = false;
+            document.getElementById("gameOverScreen").style.display = "none";
+            requestAnimationFrame(gameLoop);
+        }
+
+        function showWithdrawModal() {
+            document.getElementById("withdrawBalanceText").innerText = Math.floor(totalBank);
+            document.getElementById("withdrawError").style.display = "none";
+            document.getElementById("withdrawAmount").value = "";
+            document.getElementById("withdrawModal").style.display = "flex";
+        }
+
+        function closeWithdrawModal() {
+            document.getElementById("withdrawModal").style.display = "none";
+        }
+
+        // Алгоритм генерации защищенного промокода
+        function generatePromoCode(amount) {
+            const secretSalt = 98723;
+            const randHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
+            const checksum = ((amount * 31 + secretSalt) % 65535).toString(16).toUpperCase().padStart(4, '0');
+            const amountHex = amount.toString(16).toUpperCase().padStart(2, '0');
+            return `EGG-${amountHex}${randHex.substring(0,2)}-${checksum}`;
+        }
+
+        function processWithdraw() {
+            const amountInput = document.getElementById("withdrawAmount").value;
+            const errorDiv = document.getElementById("withdrawError");
+            const val = parseInt(amountInput, 10);
+
+            if (isNaN(val) || val.toString() !== amountInput.trim()) {
+                errorDiv.innerText = "❌ Введите целое число!";
+                errorDiv.style.display = "block";
+                return;
+            }
+
+            if (val < 10 || val > 50) {
+                errorDiv.innerText = "❌ Сумма должна быть от 10 до 50 мл!";
+                errorDiv.style.display = "block";
+                return;
+            }
+
+            if (val > totalBank) {
+                errorDiv.innerText = `❌ Недостаточно средств! В банке всего ${totalBank.toFixed(3)} мл`;
+                errorDiv.style.display = "block";
+                return;
+            }
+
+            // Списываем средства из браузера
+            totalBank -= val;
+            localStorage.setItem("egg_total_ml", totalBank.toFixed(3));
+
+            const promo = generatePromoCode(val);
+            document.getElementById("promoCodeDisplay").innerText = promo;
+            document.getElementById("botCommandText").innerText = `/getb ${promo}`;
+
+            closeWithdrawModal();
+            document.getElementById("promoModal").style.display = "flex";
+        }
+
+        function closePromoModal() {
+            document.getElementById("promoModal").style.display = "none";
+            document.getElementById("totalBankText").innerText = totalBank.toFixed(3);
         }
 
         requestAnimationFrame(gameLoop);
