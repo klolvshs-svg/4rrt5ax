@@ -122,8 +122,8 @@
     </div>
 
     <script>
-        // Авто-сброс кэша при изменении версии
-        const CURRENT_APP_VERSION = "v8_010";
+        // Версия для авто-сброса кэша
+        const CURRENT_APP_VERSION = "v9_helmet_shields";
         if (localStorage.getItem("egg_app_ver") !== CURRENT_APP_VERSION) {
             localStorage.setItem("egg_app_ver", CURRENT_APP_VERSION);
             window.location.reload(true);
@@ -140,6 +140,7 @@
         let mlEarned = 0.0;
         let gameOver = false;
         let hasShield = false;
+        let hasHelmet = false; // Состояние каски
 
         let invincibleUntil = 0; 
         let slowUntil = 0;       
@@ -194,6 +195,11 @@
                 ctx.fillText("🛡 Щит активен!", 15, statusY);
                 statusY += 20;
             }
+            if (hasHelmet && !isInvincible) {
+                ctx.fillStyle = "#ff9900";
+                ctx.fillText("🪖 Каска активна (от бомб)!", 15, statusY);
+                statusY += 20;
+            }
             if (isSlowed) {
                 ctx.fillStyle = "#99ffff";
                 ctx.fillText("❄️ Замедление! (3 сек)", 15, statusY);
@@ -204,16 +210,25 @@
             ctx.textAlign = "center";
             ctx.fillText("🥚", player.x, player.y + 15);
 
+            // Ореолы защиты вокруг яйца
             if (isInvincible) {
                 ctx.beginPath();
-                ctx.arc(player.x, player.y, player.radius + 15, 0, Math.PI * 2);
+                ctx.arc(player.x, player.y, player.radius + 18, 0, Math.PI * 2);
                 ctx.strokeStyle = "#ffcc00";
                 ctx.lineWidth = 5;
                 ctx.stroke();
-            } else if (hasShield) {
+            }
+            if (hasShield) {
                 ctx.beginPath();
                 ctx.arc(player.x, player.y, player.radius + 12, 0, Math.PI * 2);
                 ctx.strokeStyle = "#00d2ff";
+                ctx.lineWidth = 4;
+                ctx.stroke();
+            }
+            if (hasHelmet) {
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.radius + 15, 0, Math.PI * 2);
+                ctx.strokeStyle = "#ff9900";
                 ctx.lineWidth = 4;
                 ctx.stroke();
             }
@@ -227,6 +242,7 @@
                     type = "egg20";
                     egg20GuaranteedSpawned = true;
                 } else {
+                    // Баланс выпадения предметов и бонусов
                     if (mlEarned >= 15.0 && rand < 0.015) {
                         type = "egg20"; 
                     } else if (mlEarned >= 14.0 && rand >= 0.015 && rand < 0.022) {
@@ -237,12 +253,14 @@
                         type = "drop1"; 
                     } else if (mlEarned >= 6.0 && rand >= 0.065 && rand < 0.15) {
                         type = "splash"; 
-                    } else if (mlEarned >= 12.0 && rand >= 0.15 && rand < 0.22) {
-                        type = "snow"; 
-                    } else if (mlEarned >= 1.0 && rand >= 0.22 && rand < 0.46) {
+                    } else if (mlEarned >= 12.0 && rand >= 0.15 && rand < (mlEarned >= 15.0 ? 0.30 : 0.22)) {
+                        type = "snow"; // Больше снежинок после 15 мл!
+                    } else if (mlEarned >= 5.0 && !hasHelmet && rand >= 0.30 && rand < 0.35) {
+                        type = "helmet"; // Каска 🪖 (после 5 мл, только от бомб)
+                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.35 && rand < 0.43) {
+                        type = "shield"; // Щит 🛡 (чаще, строго по одному)
+                    } else if (mlEarned >= 1.0 && rand >= 0.43 && rand < 0.70) {
                         type = "bomb"; 
-                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.46 && rand < 0.475) {
-                        type = "shield"; 
                     }
                 }
 
@@ -258,10 +276,12 @@
                 const item = items[i];
                 item.y += item.speed;
 
+                // Отрисовка летящих предметов
                 ctx.font = "35px Arial";
                 if (item.type === "sword") ctx.fillText("🗡", item.x, item.y);
                 else if (item.type === "bomb") ctx.fillText("💣", item.x, item.y);
                 else if (item.type === "shield") ctx.fillText("🛡", item.x, item.y);
+                else if (item.type === "helmet") ctx.fillText("🪖", item.x, item.y);
                 else if (item.type === "drop1") ctx.fillText("💧", item.x, item.y);
                 else if (item.type === "splash") ctx.fillText("💦", item.x, item.y);
                 else if (item.type === "torii") ctx.fillText("⛩", item.x, item.y);
@@ -273,6 +293,10 @@
                 if (dist < player.radius + 15) {
                     if (item.type === "shield") {
                         hasShield = true;
+                        items.splice(i, 1);
+                        continue;
+                    } else if (item.type === "helmet") {
+                        hasHelmet = true;
                         items.splice(i, 1);
                         continue;
                     } else if (item.type === "drop1") {
@@ -300,17 +324,28 @@
                         items.splice(i, 1);
                         continue;
                     } else {
+                        // Столкновение с опасностью (меч или бомба)
                         if (isInvincible) {
                             items.splice(i, 1);
                             continue;
-                        } else if (hasShield) {
+                        } 
+                        
+                        // Каска защищает ТОЛЬКО от бомб!
+                        if (item.type === "bomb" && hasHelmet) {
+                            hasHelmet = false;
+                            items.splice(i, 1);
+                            continue;
+                        }
+
+                        // Щит защищает от всего
+                        if (hasShield) {
                             hasShield = false;
                             items.splice(i, 1);
                             continue;
-                        } else {
-                            showGameOver();
-                            return;
-                        }
+                        } 
+
+                        showGameOver();
+                        return;
                     }
                 }
 
@@ -345,6 +380,7 @@
             egg20GuaranteedSpawned = false;
             gameOver = false;
             hasShield = false;
+            hasHelmet = false;
             document.getElementById("gameOverScreen").style.display = "none";
             requestAnimationFrame(gameLoop);
         }
