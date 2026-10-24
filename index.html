@@ -55,7 +55,6 @@
 <body>
     <canvas id="gameCanvas"></canvas>
 
-    <!-- Экран окончания игры -->
     <div id="gameOverScreen">
         <h1 style="font-size: 40px; margin: 0;">💀 ИГРА ОКОНЧЕНА</h1>
         <p style="font-size: 20px; color: #aaa; margin-top: 10px;">Нож задел яйцо!</p>
@@ -190,18 +189,10 @@
         function sendResultToBot() {
             const finalMl = parseFloat(mlEarned.toFixed(3));
             
-            // Сначала пробуем стандартный sendData
+            // Пытаемся отправить данные напрямую в открытый Web App
             try {
                 tg.sendData(JSON.stringify({ score: finalMl }));
             } catch (e) {}
-
-            // Гарантированный фоллбек через перенаправление в бота
-            const botUsername = "твой_юзернейм_бота"; // Укажи юзернейм своего бота без @ (например: my_egg_bot)
-            const scoreInt = Math.round(finalMl * 1000);
-            
-            if (botUsername && scoreInt > 0) {
-                tg.openTelegramLink(`https://t.me/${botUsername}?start=score_${scoreInt}`);
-            }
 
             tg.close();
         }
