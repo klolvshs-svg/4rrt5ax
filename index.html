@@ -58,6 +58,18 @@
             outline: none;
             margin: 10px 0;
         }
+        .promo-box {
+            background: #223040;
+            border: 2px dashed #00d2ff;
+            padding: 15px;
+            border-radius: 10px;
+            font-size: 22px;
+            font-weight: bold;
+            color: #00d2ff;
+            letter-spacing: 2px;
+            margin: 15px 0;
+            user-select: all;
+        }
     </style>
 </head>
 <body>
@@ -68,29 +80,38 @@
         <h1 style="font-size: 36px; margin: 0;">💀 ИГРА ОКОНЧЕНА</h1>
         <p style="font-size: 18px; color: #aaa;">Заработано за раунд:</p>
         <p style="font-size: 26px; color: #00d2ff; font-weight: bold;" id="roundScoreText">+0.000 мл</p>
-        <p style="font-size: 18px; color: #fff;">Баланс в игре: <b id="totalBankText">0.000</b> мл</p>
+        <p style="font-size: 18px; color: #fff;">Общий баланс на сайте: <b id="totalBankText">0.000</b> мл</p>
         
         <div>
             <button class="btn" onclick="restartGame()">Заново 🔄</button>
-            <button class="btn btn-withdraw" onclick="showWithdrawModal()">Забрать в бота 🎁</button>
+            <button class="btn btn-withdraw" onclick="showWithdrawModal()">Вывести мл 🎁</button>
         </div>
     </div>
 
     <!-- Модальное окно вывода -->
     <div id="withdrawModal" class="modal">
-        <h2>🎁 Перевод миллилитров</h2>
+        <h2>🎁 Вывод миллилитров</h2>
         <p style="color: #aaa; font-size: 14px; max-width: 80%;">
             Доступно: <b id="withdrawBalanceText" style="color: #00d2ff;">0</b> мл<br>
             • Мин: <b>1 мл</b> | Макс: <b>50 мл</b><br>
-            • Целые числа (1, 5, 10 и т.д.)
+            • Только целые числа (1, 5, 10 и т.д.)
         </p>
-        <input type="number" id="withdrawAmount" placeholder="Например: 5" min="1" max="50" step="1">
+        <input type="number" id="withdrawAmount" placeholder="Например: 1" min="1" max="50" step="1">
         <div id="withdrawError" style="color: #ff4d4d; font-size: 14px; display: none; margin-bottom: 5px;"></div>
         
         <div>
-            <button class="btn btn-withdraw" onclick="processWithdraw()">Начислить в бота ✅</button>
+            <button class="btn btn-withdraw" onclick="processWithdraw()">Получить код</button>
             <button class="btn" onclick="closeWithdrawModal()">Назад</button>
         </div>
+    </div>
+
+    <!-- Модальное окно с кодом -->
+    <div id="promoModal" class="modal">
+        <h2>🎉 Код начисления готов!</h2>
+        <p style="color: #aaa;">Скопируйте код и отправьте боту командой:</p>
+        <div class="promo-box" id="promoCodeDisplay">EGG-XXXX-XXXX</div>
+        <p style="font-size: 14px; color: #888;">Команда для бота: <br><code id="botCommandText" style="color: #fff; font-size: 16px;">/getb EGG-XXXX-XXXX</code></p>
+        <button class="btn" onclick="closePromoModal()">Отлично 👍</button>
     </div>
 
     <script>
@@ -100,11 +121,8 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Получаем user_id из ссылки (если перешли по ?user_id=123)
-        const urlParams = new URLSearchParams(window.location.search);
-        const userId = urlParams.get("user_id") || "0";
-
-        let totalBank = parseFloat(localStorage.getItem("egg_total_ml_" + userId) || "0.0");
+        // Сохраняем просто в локальный банк браузера БЕЗ айди
+        let totalBank = parseFloat(localStorage.getItem("egg_total_ml_bank") || "0.0");
         let mlEarned = 0.0;
         let gameOver = false;
         let hasShield = false;
@@ -133,7 +151,7 @@
             ctx.font = "bold 16px Arial";
             ctx.textAlign = "left";
             ctx.fillText("За раунд: " + mlEarned.toFixed(3) + " мл", 15, 30);
-            ctx.fillText("В игре: " + totalBank.toFixed(3) + " мл 💦", 15, 55);
+            ctx.fillText("В банке: " + totalBank.toFixed(3) + " мл 💦", 15, 55);
 
             if (hasShield) {
                 ctx.fillStyle = "#00d2ff";
@@ -210,7 +228,7 @@
         function showGameOver() {
             gameOver = true;
             totalBank += mlEarned;
-            localStorage.setItem("egg_total_ml_" + userId, totalBank.toFixed(3));
+            localStorage.setItem("egg_total_ml_bank", totalBank.toFixed(3));
 
             document.getElementById("roundScoreText").innerText = "+" + mlEarned.toFixed(3) + " мл 💦";
             document.getElementById("totalBankText").innerText = totalBank.toFixed(3);
@@ -238,6 +256,14 @@
             document.getElementById("withdrawModal").style.display = "none";
         }
 
+        function generatePromoCode(amount) {
+            const secretSalt = 98723;
+            const randHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
+            const checksum = ((amount * 31 + secretSalt) % 65535).toString(16).toUpperCase().padStart(4, '0');
+            const amountHex = amount.toString(16).toUpperCase().padStart(2, '0');
+            return `EGG-${amountHex}${randHex.substring(0,2)}-${checksum}`;
+        }
+
         function processWithdraw() {
             const amountInput = document.getElementById("withdrawAmount").value;
             const errorDiv = document.getElementById("withdrawError");
@@ -256,23 +282,26 @@
             }
 
             if (val > totalBank) {
-                errorDiv.innerText = `❌ Недостаточно средств! Доступно: ${totalBank.toFixed(3)} мл`;
+                errorDiv.innerText = `❌ Недостаточно средств! В банке всего ${totalBank.toFixed(3)} мл`;
                 errorDiv.style.display = "block";
                 return;
             }
 
-            if (userId === "0") {
-                errorDiv.innerText = "❌ Ошибка: не указан user_id в ссылке!";
-                errorDiv.style.display = "block";
-                return;
-            }
-
-            // Списываем баланс в игре
+            // Списываем средства с баланса сайта
             totalBank -= val;
-            localStorage.setItem("egg_total_ml_" + userId, totalBank.toFixed(3));
+            localStorage.setItem("egg_total_ml_bank", totalBank.toFixed(3));
 
-            // Перенаправляем в Telegram-бот с командой автозачисления
-            window.location.href = `https://t.me/твой_юзернейм_бота?start=claim_${userId}_${val}`;
+            const promo = generatePromoCode(val);
+            document.getElementById("promoCodeDisplay").innerText = promo;
+            document.getElementById("botCommandText").innerText = `/getb ${promo}`;
+
+            closeWithdrawModal();
+            document.getElementById("promoModal").style.display = "flex";
+        }
+
+        function closePromoModal() {
+            document.getElementById("promoModal").style.display = "none";
+            document.getElementById("totalBankText").innerText = totalBank.toFixed(3);
         }
 
         requestAnimationFrame(gameLoop);
