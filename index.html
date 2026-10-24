@@ -171,7 +171,7 @@
 
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.005; // +0.005 мл за 1 меч
+                        mlEarned += 0.005;
                     }
                     items.splice(i, 1);
                 }
@@ -189,11 +189,20 @@
 
         function sendResultToBot() {
             const finalMl = parseFloat(mlEarned.toFixed(3));
+            
+            // Сначала пробуем стандартный sendData
             try {
                 tg.sendData(JSON.stringify({ score: finalMl }));
-            } catch (e) {
-                alert("Ошибка отправки: " + e);
+            } catch (e) {}
+
+            // Гарантированный фоллбек через перенаправление в бота
+            const botUsername = "твой_юзернейм_бота"; // Укажи юзернейм своего бота без @ (например: my_egg_bot)
+            const scoreInt = Math.round(finalMl * 1000);
+            
+            if (botUsername && scoreInt > 0) {
+                tg.openTelegramLink(`https://t.me/${botUsername}?start=score_${scoreInt}`);
             }
+
             tg.close();
         }
 
