@@ -306,10 +306,10 @@
                     }
                 }
 
-                // Упал за экран — начисляем ровно 0.005 мл за каждый меч
+                // Упал за экран — начисляем ровно 0.010 мл за каждый меч
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.005; 
+                        mlEarned += 0.010; 
                     }
                     items.splice(i, 1);
                 }
@@ -362,14 +362,12 @@
 
         function generatePromoCode(amount) {
             const secretSalt = 98723;
-            // Уникальный случайный хвост для каждого кода
             const randHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
             const saltNum = parseInt(randHex, 16);
             
             const checksum = ((amount * 31 + saltNum + secretSalt) % 65535).toString(16).toUpperCase().padStart(4, '0');
             const amountHex = amount.toString(16).toUpperCase().padStart(4, '0');
             
-            // Формат с уникальной частью: EGG-СУММА-ХВОСТ-ЧЕКСУММА
             return `EGG-${amountHex}-${randHex}-${checksum}`;
         }
 
