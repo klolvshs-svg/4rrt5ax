@@ -14,10 +14,11 @@
         padding: 0;
         background: #18222d;
         color: white;
-        font-family: sans-serif;
+        font-family: Arial, sans-serif;
         text-align: center;
         overflow: hidden;
         touch-action: none;
+        user-select: none;
       }
       canvas {
         display: block;
@@ -31,7 +32,7 @@
 
     <script>
       const tg = window.Telegram.WebApp;
-      tg.expand(); // Разворачиваем во весь экран
+      tg.expand();
 
       const canvas = document.getElementById("gameCanvas");
       const ctx = canvas.getContext("2d");
@@ -39,18 +40,19 @@
       canvas.width = window.innerWidth;
       canvas.height = window.innerHeight;
 
-      let score = 0;
+      let mlEarned = 0.0;
       let gameOver = false;
+      let hasShield = false;
 
       // Игрок (Яйцо)
       const player = {
         x: canvas.width / 2,
-        y: canvas.height - 60,
+        y: canvas.height - 70,
         radius: 25,
       };
 
-      // Падающие ножи
-      const knives = [];
+      // Падающие объекты
+      const items = [];
       let spawnTimer = 0;
 
       // Управление касанием/мышью
@@ -70,47 +72,93 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Отрисовка счета
-        score += 1;
-        ctx.fillStyle = "#ffffff";
-        ctx.font = "20px Arial";
-        ctx.fillText(
-          "Заработано: " + Math.floor(score / 10) + " мл 💦",
-          20,
-          40,
-        );
+        // Базовая скорость увеличивается каждые 5 мл
+        const speedMultiplier = 1 + Math.floor(mlEarned / 5) * 0.25;
 
-        // Отрисовка игрока (Яйцо)
+        // Отрисовка интерфейса
+        ctx.fillStyle = "#ffffff";
+        ctx.font = "bold 20px Arial";
+        ctx.textAlign = "left";
+        ctx.fillText("Накоплено: " + mlEarned.toFixed(2) + " мл 💦", 20, 40);
+
+        if (hasShield) {
+          ctx.fillStyle = "#00d2ff";
+          ctx.fillText("🛡 Щит активен!", 20, 70);
+        }
+
+        // Отрисовка игрока (Яйцо + Щит)
         ctx.font = "40px Arial";
         ctx.textAlign = "center";
         ctx.fillText("🥚", player.x, player.y + 15);
 
-        // Создание новых ножей
+        if (hasShield) {
+          ctx.beginPath();
+          ctx.arc(player.x, player.y, player.radius + 12, 0, Math.PI * 2);
+          ctx.strokeStyle = "#00d2ff";
+          ctx.lineWidth = 4;
+          ctx.stroke();
+        }
+
+        // Создание объектов
         spawnTimer++;
-        if (spawnTimer % 20 === 0) {
-          knives.push({
-            x: Math.random() * (canvas.width - 40) + 20,
+        if (spawnTimer % Math.max(12, Math.floor(25 / speedMultiplier)) === 0) {
+          const rand = Math.random();
+          let type = "sword"; // По умолчанию меч
+
+          // После 7 мл появляются бомбы и щиты
+          if (mlEarned >= 7.0) {
+            if (rand < 0.2) {
+              type = "bomb"; // 20% шанс на бомбу
+            } else if (rand > 0.93 && !hasShield) {
+              type = "shield"; // 7% шанс на щит
+            }
+          }
+
+          items.push({
+            x: Math.random() * (canvas.width - 60) + 30,
             y: -30,
-            speed: 5 + Math.random() * 4,
+            speed: (4 + Math.random() * 3) * speedMultiplier,
+            type: type,
           });
         }
 
-        // Обновление и отрисовка ножей
-        for (let i = knives.length - 1; i >= 0; i--) {
-          const k = knives[i];
-          k.y += k.speed;
+        // Обновление и отрисовка объектов
+        for (let i = items.length - 1; i >= 0; i--) {
+          const item = items[i];
+          item.y += item.speed;
 
-          ctx.fillText("🗡", k.x, k.y);
+          // Отрисовка значка
+          ctx.font = "35px Arial";
+          if (item.type === "sword") ctx.fillText("🗡", item.x, item.y);
+          else if (item.type === "bomb") ctx.fillText("💣", item.x, item.y);
+          else if (item.type === "shield") ctx.fillText("🛡", item.x, item.y);
 
-          // Проверка столкновения
-          const dist = Math.hypot(player.x - k.x, player.y - k.y);
+          // Столкновение с игроком
+          const dist = Math.hypot(player.x - item.x, player.y - item.y);
           if (dist < player.radius + 15) {
-            endGame();
-            return;
+            if (item.type === "shield") {
+              hasShield = true;
+              items.splice(i, 1);
+              continue;
+            } else {
+              // Меч или бомба
+              if (hasShield) {
+                hasShield = false; // Щит спасает 1 раз
+                items.splice(i, 1);
+                continue;
+              } else {
+                endGame();
+                return;
+              }
+            }
           }
 
-          if (k.y > canvas.height + 50) {
-            knives.splice(i, 1);
+          // Объект упал на дно (успешный уворот)
+          if (item.y > canvas.height + 40) {
+            if (item.type === "sword") {
+              mlEarned += 0.05; // +0.05 мл за каждый меч
+            }
+            items.splice(i, 1);
           }
         }
 
@@ -119,10 +167,18 @@
 
       function endGame() {
         gameOver = true;
-        const finalMl = Math.floor(score / 10);
+        const finalMl = parseFloat(mlEarned.toFixed(2));
 
-        // Отправляем заработанные миллилитры обратно в Telegram-бота
-        tg.sendData(JSON.stringify({ score: finalMl }));
+        // Отправляем данные обратно
+        try {
+          tg.sendData(JSON.stringify({ score: finalMl }));
+        } catch (e) {
+          console.log(e);
+        }
+
+        setTimeout(() => {
+          tg.close();
+        }, 300);
       }
 
       requestAnimationFrame(gameLoop);
