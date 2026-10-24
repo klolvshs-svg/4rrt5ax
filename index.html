@@ -55,6 +55,7 @@
 <body>
     <canvas id="gameCanvas"></canvas>
 
+    <!-- Экран окончания игры -->
     <div id="gameOverScreen">
         <h1 style="font-size: 40px; margin: 0;">💀 ИГРА ОКОНЧЕНА</h1>
         <p style="font-size: 20px; color: #aaa; margin-top: 10px;">Нож задел яйцо!</p>
@@ -189,10 +190,12 @@
         function sendResultToBot() {
             const finalMl = parseFloat(mlEarned.toFixed(3));
             
-            // Пытаемся отправить данные напрямую в открытый Web App
+            // Чистая отправка данных в бота без внешних ссылок
             try {
                 tg.sendData(JSON.stringify({ score: finalMl }));
-            } catch (e) {}
+            } catch (e) {
+                alert("Ошибка передачи: " + e);
+            }
 
             tg.close();
         }
