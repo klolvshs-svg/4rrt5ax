@@ -126,15 +126,17 @@
         let gameOver = false;
         let hasShield = false;
 
-        // Эффекты
-        let freezeUntil = 0;   // Заморозка движения (❄️)
-        let slowUntil = 0;     // Замедление движения (🥶)
+        // Временные эффекты
+        let invincibleUntil = 0; // Непробиваемость (⛩) на 5 секунд
+        let slowUntil = 0;       // Замедление (❄️) на 3 секунды
         let targetX = canvas.width / 2;
+
+        // Трекинг гарантированного выпадения яйца +20 (от 20 до 25 мл)
+        let egg20GuaranteedSpawned = false;
 
         const player = { x: canvas.width / 2, y: canvas.height - 70, radius: 25 };
         let items = [];
         let spawnTimer = 0;
-        let dropSpawnCounter = 0; // Для редкого выпадения капли 💧
 
         function handleMove(e) {
             if (gameOver) return;
@@ -148,23 +150,21 @@
             if (gameOver) return;
 
             const now = Date.now();
-            const isFrozen = now < freezeUntil;
+            const isInvincible = now < invincibleUntil;
             const isSlowed = now < slowUntil;
 
-            // Обновление положения игрока с учетом замедления / заморозки
-            if (!isFrozen) {
-                if (isSlowed) {
-                    player.x += (targetX - player.x) * 0.08; // Замедленный отклик
-                } else {
-                    player.x = targetX; // Обычный мгновенный отклик
-                }
+            // Движение с учетом замедления
+            if (isSlowed) {
+                player.x += (targetX - player.x) * 0.09;
+            } else {
+                player.x = targetX;
             }
             player.x = Math.max(player.radius, Math.min(canvas.width - player.radius, player.x));
 
             ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-            // Скорость увеличивается чуть-чуть с каждыми 4 мл
-            const speedMultiplier = 1 + Math.floor(mlEarned / 4) * 0.10;
+            // Скорость игры растет с каждыми 5 мл
+            const speedMultiplier = 1 + Math.floor(mlEarned / 5) * 0.12;
 
             ctx.fillStyle = "#ffffff";
             ctx.font = "bold 16px Arial";
@@ -174,19 +174,19 @@
 
             // Отрисовка активных статусов
             let statusY = 80;
-            if (hasShield) {
+            if (isInvincible) {
+                ctx.fillStyle = "#ffcc00";
+                ctx.fillText("⛩ Непробиваемость! (5 сек)", 15, statusY);
+                statusY += 20;
+            }
+            if (hasShield && !isInvincible) {
                 ctx.fillStyle = "#00d2ff";
                 ctx.fillText("🛡 Щит активен!", 15, statusY);
                 statusY += 20;
             }
-            if (isFrozen) {
-                ctx.fillStyle = "#99ffff";
-                ctx.fillText("❄️ Заморозка! (2 сек)", 15, statusY);
-                statusY += 20;
-            }
             if (isSlowed) {
-                ctx.fillStyle = "#00aaff";
-                ctx.fillText("🥶 Замедление! (3 сек)", 15, statusY);
+                ctx.fillStyle = "#99ffff";
+                ctx.fillText("❄️ Замедление! (3 сек)", 15, statusY);
             }
 
             // Отрисовка игрока
@@ -194,7 +194,14 @@
             ctx.textAlign = "center";
             ctx.fillText("🥚", player.x, player.y + 15);
 
-            if (hasShield) {
+            // Золотая или голубая аура
+            if (isInvincible) {
+                ctx.beginPath();
+                ctx.arc(player.x, player.y, player.radius + 15, 0, Math.PI * 2);
+                ctx.strokeStyle = "#ffcc00";
+                ctx.lineWidth = 5;
+                ctx.stroke();
+            } else if (hasShield) {
                 ctx.beginPath();
                 ctx.arc(player.x, player.y, player.radius + 12, 0, Math.PI * 2);
                 ctx.strokeStyle = "#00d2ff";
@@ -202,40 +209,34 @@
                 ctx.stroke();
             }
 
-            // Генерация предметов
+            // Спавн предметов
             spawnTimer++;
-            if (spawnTimer % Math.max(10, Math.floor(22 / speedMultiplier)) === 0) {
-                const rand = Math.random();
+            if (spawnTimer % Math.max(9, Math.floor(22 / speedMultiplier)) === 0) {
                 let type = "sword";
+                const rand = Math.random();
 
-                // Условия по миллилитрам
-                const allowShield = mlEarned >= 5.0;
-                const allowBomb = mlEarned >= 6.0;
-                const allowSnow = mlEarned >= 10.0;
-                const allowDrop = mlEarned >= 15.0;
-                const allowSlow = mlEarned >= 20.0;
-
-                // Редкая капля 💧 (~1 раз на 1 мл)
-                let spawnedDrop = false;
-                if (allowDrop && (mlEarned - dropSpawnCounter >= 1.0) && Math.random() < 0.15) {
-                    type = "drop";
-                    dropSpawnCounter = Math.floor(mlEarned);
-                    spawnedDrop = true;
-                }
-
-                if (!spawnedDrop) {
-                    if (allowBomb && rand < 0.15) {
-                        type = "bomb";
-                    } else if (allowSlow && rand > 0.15 && rand < 0.25) {
-                        type = "slow";
-                    } else if (allowSnow && rand >= 0.25 && rand < 0.35) {
-                        type = "snow";
-                    } else if (allowShield && !hasShield) {
-                        // Шанс щита: редкий от 5 мл, частый после 6 мл
-                        const shieldChance = (mlEarned >= 6.0) ? 0.30 : 0.10;
-                        if (Math.random() < shieldChance) {
-                            type = "shield";
-                        }
+                // Проверка гарантированного выпадения яйца +20 в отрезке 20-25 мл
+                if (mlEarned >= 20.0 && mlEarned <= 25.0 && !egg20GuaranteedSpawned && Math.random() < 0.35) {
+                    type = "egg20";
+                    egg20GuaranteedSpawned = true;
+                } else {
+                    // Иерархия шансов выпадения
+                    if (mlEarned >= 15.0 && rand < 0.02) {
+                        type = "egg20"; // Самое редкое (+20 мл)
+                    } else if (mlEarned >= 10.0 && rand >= 0.02 && rand < 0.05) {
+                        type = "blood"; // Кровь (+10 мл)
+                    } else if (mlEarned >= 8.0 && rand >= 0.05 && rand < 0.09) {
+                        type = "torii"; // Ворота (⛩) - Непробиваемость
+                    } else if (mlEarned >= 5.0 && rand >= 0.09 && rand < 0.15) {
+                        type = "drop1"; // Капля (+1 мл)
+                    } else if (mlEarned >= 6.0 && rand >= 0.15 && rand < 0.25) {
+                        type = "splash"; // Всплеск (+0.1 мл)
+                    } else if (mlEarned >= 12.0 && rand >= 0.25 && rand < 0.38) {
+                        type = "snow"; // Снежинка (❄️) - Замедление
+                    } else if (mlEarned >= 1.0 && rand >= 0.38 && rand < 0.55) {
+                        type = "bomb"; // Бомбы (💣)
+                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.55 && rand < 0.68) {
+                        type = "shield"; // Щит (🛡)
                     }
                 }
 
@@ -247,7 +248,7 @@
                 });
             }
 
-            // Движение и столкновения
+            // Обработка предметов
             for (let i = items.length - 1; i >= 0; i--) {
                 const item = items[i];
                 item.y += item.speed;
@@ -256,30 +257,52 @@
                 if (item.type === "sword") ctx.fillText("🗡", item.x, item.y);
                 else if (item.type === "bomb") ctx.fillText("💣", item.x, item.y);
                 else if (item.type === "shield") ctx.fillText("🛡", item.x, item.y);
+                else if (item.type === "drop1") ctx.fillText("💧", item.x, item.y);
+                else if (item.type === "splash") ctx.fillText("💦", item.x, item.y);
+                else if (item.type === "torii") ctx.fillText("⛩", item.x, item.y);
+                else if (item.type === "blood") ctx.fillText("🩸", item.x, item.y);
                 else if (item.type === "snow") ctx.fillText("❄️", item.x, item.y);
-                else if (item.type === "drop") ctx.fillText("💧", item.x, item.y);
-                else if (item.type === "slow") ctx.fillText("🥶", item.x, item.y);
+                else if (item.type === "egg20") ctx.fillText("🥚", item.x, item.y);
 
                 const dist = Math.hypot(player.x - item.x, player.y - item.y);
                 if (dist < player.radius + 15) {
+                    // Бонусы
                     if (item.type === "shield") {
                         hasShield = true;
                         items.splice(i, 1);
                         continue;
-                    } else if (item.type === "drop") {
-                        mlEarned += 1.0; // Дает ровно 1 мл
+                    } else if (item.type === "drop1") {
+                        mlEarned += 1.0;
+                        items.splice(i, 1);
+                        continue;
+                    } else if (item.type === "splash") {
+                        mlEarned += 0.1;
+                        items.splice(i, 1);
+                        continue;
+                    } else if (item.type === "torii") {
+                        invincibleUntil = Date.now() + 5000; // 5 сек иммунитета
+                        items.splice(i, 1);
+                        continue;
+                    } else if (item.type === "blood") {
+                        mlEarned += 10.0;
+                        items.splice(i, 1);
+                        continue;
+                    } else if (item.type === "egg20") {
+                        mlEarned += 20.0;
                         items.splice(i, 1);
                         continue;
                     } else if (item.type === "snow") {
-                        freezeUntil = Date.now() + 2000; // Заморозка 2 сек
+                        slowUntil = Date.now() + 3000; // 3 сек замедления
                         items.splice(i, 1);
                         continue;
-                    } else if (item.type === "slow") {
-                        slowUntil = Date.now() + 3000; // Замедление 3 сек
-                        items.splice(i, 1);
-                        continue;
-                    } else { // Мечи 🗡 и Бомбы 💣
-                        if (hasShield) {
+                    } 
+                    // Опасности (🗡 и 💣)
+                    else {
+                        if (isInvincible) {
+                            // Непробиваемость проглатывает любые удары
+                            items.splice(i, 1);
+                            continue;
+                        } else if (hasShield) {
                             hasShield = false;
                             items.splice(i, 1);
                             continue;
@@ -290,10 +313,10 @@
                     }
                 }
 
-                // Упал за экран
+                // Упал за границы
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.005; // Считаем миллилитры только за мечи
+                        mlEarned += 0.05; // Каждое пропущенное оружие дает +0.050 мл
                     }
                     items.splice(i, 1);
                 }
@@ -316,9 +339,9 @@
             mlEarned = 0.0;
             items = [];
             spawnTimer = 0;
-            dropSpawnCounter = 0;
-            freezeUntil = 0;
+            invincibleUntil = 0;
             slowUntil = 0;
+            egg20GuaranteedSpawned = false;
             gameOver = false;
             hasShield = false;
             document.getElementById("gameOverScreen").style.display = "none";
@@ -340,7 +363,7 @@
             const secretSalt = 98723;
             const randHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
             const checksum = ((amount * 31 + secretSalt) % 65535).toString(16).toUpperCase().padStart(4, '0');
-            const amountHex = amount.toString(16).toUpperCase().padStart(4, '0'); // Расширено под 500 мл
+            const amountHex = amount.toString(16).toUpperCase().padStart(4, '0');
             return `EGG-${amountHex}-${checksum}`;
         }
 
@@ -355,7 +378,6 @@
                 return;
             }
 
-            // Новые лимиты: от 1 до 500 мл
             if (val < 1 || val > 500) {
                 errorDiv.innerText = "❌ Сумма должна быть от 1 до 500 мл!";
                 errorDiv.style.display = "block";
