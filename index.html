@@ -72,14 +72,14 @@
 
         ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-        // Базовая скорость увеличивается каждые 5 мл
+        // Скорость увеличивается каждые 5 мл
         const speedMultiplier = 1 + Math.floor(mlEarned / 5) * 0.25;
 
         // Отрисовка интерфейса
         ctx.fillStyle = "#ffffff";
         ctx.font = "bold 20px Arial";
         ctx.textAlign = "left";
-        ctx.fillText("Накоплено: " + mlEarned.toFixed(2) + " мл 💦", 20, 40);
+        ctx.fillText("Накоплено: " + mlEarned.toFixed(3) + " мл 💦", 20, 40);
 
         if (hasShield) {
           ctx.fillStyle = "#00d2ff";
@@ -101,16 +101,16 @@
 
         // Создание объектов
         spawnTimer++;
-        if (spawnTimer % Math.max(12, Math.floor(25 / speedMultiplier)) === 0) {
+        if (spawnTimer % Math.max(10, Math.floor(22 / speedMultiplier)) === 0) {
           const rand = Math.random();
-          let type = "sword"; // По умолчанию меч
+          let type = "sword";
 
-          // После 7 мл появляются бомбы и щиты
+          // После 7 мл спавнятся бомбы и щиты
           if (mlEarned >= 7.0) {
             if (rand < 0.2) {
-              type = "bomb"; // 20% шанс на бомбу
+              type = "bomb";
             } else if (rand > 0.93 && !hasShield) {
-              type = "shield"; // 7% шанс на щит
+              type = "shield";
             }
           }
 
@@ -127,7 +127,6 @@
           const item = items[i];
           item.y += item.speed;
 
-          // Отрисовка значка
           ctx.font = "35px Arial";
           if (item.type === "sword") ctx.fillText("🗡", item.x, item.y);
           else if (item.type === "bomb") ctx.fillText("💣", item.x, item.y);
@@ -141,7 +140,6 @@
               items.splice(i, 1);
               continue;
             } else {
-              // Меч или бомба
               if (hasShield) {
                 hasShield = false; // Щит спасает 1 раз
                 items.splice(i, 1);
@@ -153,10 +151,10 @@
             }
           }
 
-          // Объект упал на дно (успешный уворот)
+          // Объект упал на дно (1 меч = +0.005 мл)
           if (item.y > canvas.height + 40) {
             if (item.type === "sword") {
-              mlEarned += 0.05; // +0.05 мл за каждый меч
+              mlEarned += 0.005;
             }
             items.splice(i, 1);
           }
@@ -167,9 +165,9 @@
 
       function endGame() {
         gameOver = true;
-        const finalMl = parseFloat(mlEarned.toFixed(2));
+        const finalMl = parseFloat(mlEarned.toFixed(3));
 
-        // Отправляем данные обратно
+        // Пробуем отправить через sendData (для ЛС)
         try {
           tg.sendData(JSON.stringify({ score: finalMl }));
         } catch (e) {
