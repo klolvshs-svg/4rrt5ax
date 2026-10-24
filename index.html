@@ -93,10 +93,10 @@
         <h2>🎁 Вывод миллилитров</h2>
         <p style="color: #aaa; font-size: 14px; max-width: 80%;">
             Доступно: <b id="withdrawBalanceText" style="color: #00d2ff;">0</b> мл<br>
-            • Мин: <b>10 мл</b> | Макс: <b>50 мл</b><br>
-            • Только целые числа (10, 15, 20 и т.д.)
+            • Мин: <b>1 мл</b> | Макс: <b>50 мл</b><br>
+            • Только целые числа (1, 5, 10 и т.д.)
         </p>
-        <input type="number" id="withdrawAmount" placeholder="Например: 10" min="10" max="50" step="1">
+        <input type="number" id="withdrawAmount" placeholder="Например: 1" min="1" max="50" step="1">
         <div id="withdrawError" style="color: #ff4d4d; font-size: 14px; display: none; margin-bottom: 5px;"></div>
         
         <div>
@@ -121,7 +121,6 @@
         canvas.width = window.innerWidth;
         canvas.height = window.innerHeight;
 
-        // Загружаем общий сохраненный баланс из браузера
         let totalBank = parseFloat(localStorage.getItem("egg_total_ml") || "0.0");
         let mlEarned = 0.0;
         let gameOver = false;
@@ -256,7 +255,6 @@
             document.getElementById("withdrawModal").style.display = "none";
         }
 
-        // Алгоритм генерации защищенного промокода
         function generatePromoCode(amount) {
             const secretSalt = 98723;
             const randHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
@@ -276,8 +274,9 @@
                 return;
             }
 
-            if (val < 10 || val > 50) {
-                errorDiv.innerText = "❌ Сумма должна быть от 10 до 50 мл!";
+            // ИЗМЕНЕНО: Мин лимит теперь 1 вместо 10
+            if (val < 1 || val > 50) {
+                errorDiv.innerText = "❌ Сумма должна быть от 1 до 50 мл!";
                 errorDiv.style.display = "block";
                 return;
             }
@@ -288,7 +287,6 @@
                 return;
             }
 
-            // Списываем средства из браузера
             totalBank -= val;
             localStorage.setItem("egg_total_ml", totalBank.toFixed(3));
 
