@@ -123,7 +123,7 @@
 
     <script>
         // Версия для авто-сброса кэша
-        const CURRENT_APP_VERSION = "v9_helmet_shields";
+        const CURRENT_APP_VERSION = "v10_015_swords";
         if (localStorage.getItem("egg_app_ver") !== CURRENT_APP_VERSION) {
             localStorage.setItem("egg_app_ver", CURRENT_APP_VERSION);
             window.location.reload(true);
@@ -140,7 +140,7 @@
         let mlEarned = 0.0;
         let gameOver = false;
         let hasShield = false;
-        let hasHelmet = false; // Состояние каски
+        let hasHelmet = false;
 
         let invincibleUntil = 0; 
         let slowUntil = 0;       
@@ -242,24 +242,24 @@
                     type = "egg20";
                     egg20GuaranteedSpawned = true;
                 } else {
-                    // Баланс выпадения предметов и бонусов
-                    if (mlEarned >= 15.0 && rand < 0.015) {
+                    // Баланс редких наград (кровь и +20мл яйцо стали умеренно редкими)
+                    if (mlEarned >= 15.0 && rand < 0.025) {
                         type = "egg20"; 
-                    } else if (mlEarned >= 14.0 && rand >= 0.015 && rand < 0.022) {
+                    } else if (mlEarned >= 14.0 && rand >= 0.025 && rand < 0.045) {
                         type = "blood"; 
-                    } else if (mlEarned >= 8.0 && rand >= 0.022 && rand < 0.04) {
+                    } else if (mlEarned >= 8.0 && rand >= 0.045 && rand < 0.065) {
                         type = "torii"; 
-                    } else if (mlEarned >= 5.0 && rand >= 0.04 && rand < 0.065) {
+                    } else if (mlEarned >= 5.0 && rand >= 0.065 && rand < 0.09) {
                         type = "drop1"; 
-                    } else if (mlEarned >= 6.0 && rand >= 0.065 && rand < 0.15) {
+                    } else if (mlEarned >= 6.0 && rand >= 0.09 && rand < 0.17) {
                         type = "splash"; 
-                    } else if (mlEarned >= 12.0 && rand >= 0.15 && rand < (mlEarned >= 15.0 ? 0.30 : 0.22)) {
-                        type = "snow"; // Больше снежинок после 15 мл!
-                    } else if (mlEarned >= 5.0 && !hasHelmet && rand >= 0.30 && rand < 0.35) {
+                    } else if (mlEarned >= 12.0 && rand >= 0.17 && rand < (mlEarned >= 15.0 ? 0.32 : 0.24)) {
+                        type = "snow"; // Больше снежинок после 15 мл
+                    } else if (mlEarned >= 5.0 && !hasHelmet && rand >= 0.32 && rand < 0.37) {
                         type = "helmet"; // Каска 🪖 (после 5 мл, только от бомб)
-                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.35 && rand < 0.43) {
-                        type = "shield"; // Щит 🛡 (чаще, строго по одному)
-                    } else if (mlEarned >= 1.0 && rand >= 0.43 && rand < 0.70) {
+                    } else if (mlEarned >= 3.0 && !hasShield && rand >= 0.37 && rand < 0.45) {
+                        type = "shield"; // Щит 🛡 (чаще, по одному)
+                    } else if (mlEarned >= 1.0 && rand >= 0.45 && rand < 0.72) {
                         type = "bomb"; 
                     }
                 }
@@ -349,10 +349,10 @@
                     }
                 }
 
-                // Упал за экран — начисляем ровно 0.010 мл за каждый меч
+                // Упал за экран — начисляем ровно 0.015 мл СТРОГО за мечи (ножи)
                 if (item.y > canvas.height + 40) {
                     if (item.type === "sword") {
-                        mlEarned += 0.010; 
+                        mlEarned += 0.015; 
                     }
                     items.splice(i, 1);
                 }
@@ -404,6 +404,7 @@
             document.getElementById("withdrawModal").style.display = "none";
         }
 
+        // Логика промокодов не тронута и работает по старой схеме
         function generatePromoCode(amount) {
             const secretSalt = 98723;
             const randHex = Math.floor(1000 + Math.random() * 9000).toString(16).toUpperCase();
